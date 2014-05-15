@@ -1,0 +1,229 @@
+/**
+ * This file is part of JMapDesk.
+ * 
+ * JMapDesk is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * JMapDesk is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with JMapDesk.  If not, see <http://www.gnu.org/licenses/>.
+ * 
+ */
+
+package ch.hsr.ifs.jmapdesk.mapfile;
+
+import java.awt.Dimension;
+import java.awt.geom.Dimension2D;
+import java.awt.geom.Rectangle2D;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.StringTokenizer;
+import java.util.regex.Pattern;
+
+public class MapFile {
+	private File file;
+	private Dimension2D size;
+	private String name = "(unnamed)";
+	private Rectangle2D.Double fullExtent;
+	private ArrayList<MapFileLayer> layers = new ArrayList<MapFileLayer>();
+	private ArrayList<MapFileLayer> statuslist = new ArrayList<MapFileLayer>();
+	private TagList tags;
+	private int fileHash = 0;
+	private boolean refresh = false;
+	private boolean tempfile = false;
+	private String tempmap = "";
+	
+	/**
+	 * Copy MapFile to a temp MapFile,
+	 * change the "imagepath" and "imageurl" if necessary.
+	 * then reread the temp MapFile.
+	 * 
+	 * @param file MapFile
+	 * @param tempmap Temp MapFile - "_jmap_tmp.map"
+	 */
+	public MapFile(File file, File tempmap) {
+		this.file = file;
+		this.tempmap = tempmap.toString();
+		tempfile = true;
+		readMapfile();
+		tempfile = false;
+		
+		this.file = tempmap;
+		fileHash = file.hashCode();
+		layers.clear();
+		readMapfile();
+	}
+	
+	/**
+	 * Update LayerPanel
+	 * 
+	 * @param statuslist LayerList
+	 */
+	public void update_layers(ArrayList<MapFileLayer> statuslist) {
+		this.statuslist = statuslist;
+		this.layers.clear();
+		refresh = true;
+		readMapfile();
+		refresh = false;
+	}
+	
+	/**
+	 * Parse Mapfile to get the needed parts for the GUI
+	 */
+	public void readMapfile() {
+		try {
+		    BufferedReader br = new BufferedReader(new FileReader(this.file));
+		    BufferedWriter bw = null;
+		    String line = null;
+		    String layername = null;
+		    tags = new TagList();
+			while ((line = br.readLine()) != null) {
+				line = Pattern.compile("\t").matcher(line).replaceAll(" ");
+				StringTokenizer tk = new StringTokenizer(line, " ");
+				if(tk.hasMoreTokens()) {
+					String cmd = tk.nextToken();
+					if(cmd.equalsIgnoreCase("map") || cmd.equalsIgnoreCase("symbol") || cmd.equalsIgnoreCase("legend")
+							|| cmd.equalsIgnoreCase("class") || cmd.equalsIgnoreCase("metadata") || cmd.equalsIgnoreCase("outputformat")
+							|| cmd.equalsIgnoreCase("style") || cmd.equalsIgnoreCase("points") || cmd.equalsIgnoreCase("querymap")
+							|| cmd.equalsIgnoreCase("projection") || cmd.equalsIgnoreCase("legend") || cmd.equalsIgnoreCase("scalebar")
+							|| cmd.equalsIgnoreCase("label") || cmd.equalsIgnoreCase("web")) {
+						tags.add(cmd);
+					} else if(cmd.equalsIgnoreCase("layer")) {
+						tags.add(cmd);
+						layers.add(new MapFileLayer());
+					} else if(cmd.equalsIgnoreCase("end")) {
+						tags.removeCurrent();
+					} else if(tags.isCurrent("map") && cmd.equalsIgnoreCase("size")) {
+						size = new Dimension();
+						double width = Double.valueOf(tk.nextToken());
+						double height = Double.valueOf(tk.nextToken());
+						size.setSize(width, height);
+					} else if(tags.isCurrent("map") && cmd.equalsIgnoreCase("extent")) {
+						fullExtent = new Rectangle2D.Double();
+						fullExtent.x = Double.valueOf(tk.nextToken());
+						fullExtent.y = Double.valueOf(tk.nextToken());
+						fullExtent.width = Double.valueOf(tk.nextToken()) - fullExtent.x;
+						fullExtent.height = Double.valueOf(tk.nextToken()) - fullExtent.y;
+					} else if(tags.isCurrent("map") && cmd.equalsIgnoreCase("name")) {
+						name = tk.nextToken();
+					} else if(tags.isCurrent("layer") && cmd.equalsIgnoreCase("name")) {
+						layername = "";
+						while (tk.hasMoreTokens()) {
+							layername = layername.concat(tk.nextToken()) + " ";
+						}
+						layername = layername.trim();
+						layers.get(layers.size()-1).setName(layername);
+					} else if(tags.isCurrent("layer") && cmd.equalsIgnoreCase("type")) {
+						layers.get(layers.size()-1).setType(tk.nextToken());
+					} else if(tags.isCurrent("class") && tags.isParent("layer") && cmd.equalsIgnoreCase("name")) {
+						String classname = "";
+						while (tk.hasMoreTokens()) {
+							classname = classname.concat(tk.nextToken()) + " ";
+						}
+						classname = classname.trim();
+						layers.get(layers.size()-1).setCaption(classname);
+					} else if(tags.isCurrent("layer") && cmd.equalsIgnoreCase("status")) {
+						String status = tk.nextToken();
+						if(!refresh && status.equalsIgnoreCase("default")) {
+							line = "    STATUS ON";
+						} else if(refresh) {
+							boolean found = false;
+							for (int i = 0; i < statuslist.size(); i++) {
+								if (statuslist.get(i).getName().equals(layername)) {
+									layers.get(layers.size()-1).setStatus(statuslist.get(i).getStatus());
+									found = true;
+									break;
+								}
+							}
+							if(!found) {
+								layers.get(layers.size()-1).setStatus(status);
+							}
+						} else {
+							layers.get(layers.size()-1).setStatus(status);
+						}
+					}
+					if (tempfile && tempmap != null) {
+						if (bw == null) {
+							bw = new BufferedWriter(new FileWriter(tempmap));
+						}
+						if(tempfile && tags.isCurrent("web") && cmd.equalsIgnoreCase("imagepath")) {
+							line = "    IMAGEPATH \"" + System.getProperty("java.io.tmpdir")
+									+ File.separator + "jmapdesk-maps" + File.separator + "\"";
+						} else if(tempfile && tags.isCurrent("web") && cmd.equalsIgnoreCase("imageurl")) {
+						    line = "    IMAGEURL \"/\"";
+						}
+						bw.write(line);
+						bw.newLine();
+					}
+				}
+			}
+			br.close();
+			if (bw != null) {
+				bw.close();
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	public boolean reloadIfChanged() {
+		if(file.hashCode()!=fileHash) {
+			fileHash = file.hashCode();
+			readMapfile();
+			return true;
+		}
+		return false;
+	}
+	public String getFileName() {
+		return file.getName();
+	}
+	
+	public String toString() {
+		return getFileName();
+	}
+
+	public File getFile() {
+		return file;
+	}
+	
+	public Rectangle2D.Double getFullExtent() {
+		return fullExtent;
+	}
+
+	public ArrayList<MapFileLayer> getLayers() {
+		return layers;
+	}
+	
+	public void emptyLayers() {
+		layers.clear();
+	}
+
+	public Dimension2D getSize() {
+		return size;
+	}
+
+	public String getName() {
+		return name;
+	}
+	
+	public ArrayList<String> getActiveLayerList() {
+		ArrayList<String> al = new ArrayList<String>();
+		for (MapFileLayer mfl : layers) {
+			if(mfl.isOn()){
+				al.add(mfl.getName());
+			}
+		}
+		return al;
+	}
+}

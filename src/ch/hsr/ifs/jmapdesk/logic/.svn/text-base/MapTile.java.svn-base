@@ -1,0 +1,77 @@
+/**
+ * This file is part of JMapDesk.
+ * 
+ * JMapDesk is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * JMapDesk is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with JMapDesk.  If not, see <http://www.gnu.org/licenses/>.
+ * 
+ */
+
+package ch.hsr.ifs.jmapdesk.logic;
+
+import java.awt.Image;
+import java.io.IOException;
+
+import ch.hsr.ifs.jmapdesk.util.MapPoint;
+
+public class MapTile {
+	private Image image;
+	private MapPoint position;
+	private int zoomLevel;
+	private Map parent;
+	
+	public MapTile(MapPoint position, int level, Map parent) {
+		this.position = position;
+		this.zoomLevel = level;
+		this.parent = parent;
+		try {
+			load();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	/**
+	 * calculate extent
+	 * 
+	 * @throws IOException
+	 * @throws InterruptedException
+	 */
+	public void load() throws IOException, InterruptedException {
+		// Calculate points
+		Double addX = (((parent.getMapWidth()) / 2)/Math.pow(parent.ZOOM_BASE, zoomLevel));
+		Double addY = (((parent.getMapHeight()) / 2)/Math.pow(parent.ZOOM_BASE, zoomLevel));
+		MapPoint e1 = new MapPoint();
+		MapPoint e2 = new MapPoint();
+		e1.setLocation(position.x - addX + parent.getXOffset(), position.y - addY + parent.getYOffset());
+		e2.setLocation(position.x + addX + parent.getXOffset(), position.y + addY + parent.getYOffset());
+		image = parent.getMapLoader().loadMap(this.parent.getMapAbsolutePath(), e1, e2, this.parent.getMapfile().getActiveLayerList());
+	}
+	
+	public Image getImage() {
+		return image;
+	}
+	
+	public void setImage(Image image) {
+		this.image = image;
+	}
+
+	public int getZoomLevel() {
+		return zoomLevel;
+	}
+
+	public void setZoomLevel(int zoomLevel) {
+		this.zoomLevel = zoomLevel;
+	}
+}

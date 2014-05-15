@@ -1,0 +1,136 @@
+/**
+ * This file is part of JMapDesk.
+ * 
+ * JMapDesk is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * JMapDesk is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with JMapDesk.  If not, see <http://www.gnu.org/licenses/>.
+ * 
+ */
+
+package ch.hsr.ifs.jmapdesk.mapfile;
+
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.util.regex.Pattern;
+
+import javax.swing.ImageIcon;
+import javax.swing.JCheckBox;
+
+public class MapFileLayer {
+	
+	/**
+	 * Mapfile Layer Object
+	 */
+	private String name;
+	private String caption;
+	private String status;
+	private String type;
+	private JCheckBox chkBox = null;
+	
+	private ActionListener al = new ActionListener() {
+		public void actionPerformed(ActionEvent e) {
+			if(e.getID()==1001) {
+				JCheckBox chk = (JCheckBox)e.getSource();
+				if(chk.isSelected()) {
+					setStatus("on");
+				} else {
+					setStatus("off");
+				}
+			}
+		}
+	};
+	
+	public MapFileLayer() {
+		this.name = "";
+		this.caption = "";
+		this.status = "";
+		this.type = "";
+	}
+	
+	public String getCaption() {
+		if(caption=="") {
+			return name;
+		} else {
+			return caption;
+		}
+	}
+	public String getName() {
+		return name;
+	}
+	public String getStatus() {
+		return status;
+	}
+	public String getType() {
+		return type;
+	}
+	public void setCaption(String caption) {
+		this.caption = remove_char(caption);
+	}
+	public void setName(String name) {
+		this.name = remove_char(name);
+	}
+	public void setStatus(String status) {
+		this.status = remove_char(status);
+	}
+	public void setType(String type) {
+		this.type = remove_char(type);
+	}
+	public String toString() {
+		return this.getClass().getName() + " Name: " + name + " / Caption: "+caption+" / Status: "+status;
+	}
+	public boolean isOn() {
+		return this.status.equalsIgnoreCase("on") || isDefault();
+	}
+	public boolean isDefault(){
+		 return this.status.equalsIgnoreCase("default");
+	}
+	
+	/**
+	 * Generate CheckBox
+	 * 
+	 * @return CheckBox
+	 */
+	public JCheckBox getCheckBox() {
+		if(chkBox==null) {
+			chkBox = new JCheckBox(getCaption(), isOn());
+			chkBox.setActionCommand(getName());
+			chkBox.setEnabled(!isDefault());
+			chkBox.setToolTipText(type);
+			chkBox.setSelectedIcon(new ImageIcon(getClass().getResource("/ch/hsr/mapdesk/mapfile/images/type_" + type.toLowerCase() + "_tick.png")));
+			chkBox.setIcon(new ImageIcon(getClass().getResource("/ch/hsr/mapdesk/mapfile/images/type_" + type.toLowerCase() + "_untick.png")));
+		}
+		return chkBox;
+	}
+	
+	public void addCheckBoxActionListener(ActionListener l) {
+		JCheckBox chk = getCheckBox();
+		if(chk.getActionListeners().length>1){
+			chk.removeActionListener(al);
+		}
+		chk.addActionListener(l);
+		chk.addActionListener(al);
+	}
+
+	/**
+	 * remove comments
+	 * 
+	 * @param remove Text String
+	 * @return cleaned String
+	 */
+	private String remove_char(String remove) {
+		String[] regex = { "#.*", "'", "\"" };
+		for (int i = 0; i < regex.length; i++) {
+			remove = Pattern.compile(regex[i]).matcher(remove).replaceAll("");
+		}
+		return remove;
+	}
+}

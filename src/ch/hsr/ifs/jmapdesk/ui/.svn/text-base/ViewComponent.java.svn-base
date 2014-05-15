@@ -1,0 +1,196 @@
+/**
+ * This file is part of JMapDesk.
+ * 
+ * JMapDesk is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * JMapDesk is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with JMapDesk.  If not, see <http://www.gnu.org/licenses/>.
+ * 
+ */
+
+package ch.hsr.ifs.jmapdesk.ui;
+
+import java.awt.Color;
+import java.awt.Cursor;
+import java.awt.Graphics;
+import java.awt.Image;
+import java.awt.Point;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.awt.event.MouseMotionListener;
+import java.awt.event.MouseWheelEvent;
+import java.awt.event.MouseWheelListener;
+import java.awt.image.ImageObserver;
+
+import javax.swing.JComponent;
+
+import ch.hsr.ifs.jmapdesk.logic.Map;
+import ch.hsr.ifs.jmapdesk.util.MapPoint;
+
+class ViewComponent extends JComponent {
+
+	/**
+	 * Showing Map
+	 */
+	private static final long serialVersionUID = 1L;
+
+	private Map map;
+	private Point dragStart;
+	private Point dragCurrent = new Point(0, 0);
+	private Graphics backbuffer;
+	private Image backimage;
+	private boolean isBufferReady = false;
+
+	public ViewComponent(Map newmap) {
+		map = newmap;
+		repaint();
+		setBackground(Color.black);
+		addMouseMotionListener(new MouseMotionListener() {
+			public void mouseDragged(MouseEvent e) {
+				if (isBufferReady) {
+					dragCurrent = e.getPoint();
+					dragCurrent.translate(-dragStart.x, -dragStart.y);
+					repaint();
+				}
+			}
+			public void mouseMoved(MouseEvent e) {
+				setCursor(new Cursor(Cursor.CROSSHAIR_CURSOR));
+			}
+		});
+		addMouseListener(new MouseListener() {
+			public void mouseClicked(MouseEvent e) {
+				if ((e.getButton() == MouseEvent.BUTTON1 && e.getClickCount() == 2)
+						|| (e.getButton() == MouseEvent.BUTTON1 && e.isControlDown())) {
+					// Zoom In
+					setCursor(new Cursor(Cursor.WAIT_CURSOR));
+					map.zoomIn(e.getPoint());
+					reloadImage();
+
+				} else {
+					// Zoom Out
+					if (e.getButton() == MouseEvent.BUTTON3) {
+						setCursor(new Cursor(Cursor.WAIT_CURSOR));
+						map.zoomOut();
+						reloadImage();
+					}
+				}
+			}
+			public void mouseExited(MouseEvent e) {}
+			public void mousePressed(MouseEvent e) {
+				setCursor(new Cursor(Cursor.MOVE_CURSOR));
+				dragStart = e.getPoint();
+			}
+			public void mouseReleased(MouseEvent e) {
+				if (isBufferReady) {
+					MapPoint movement = new MapPoint(dragStart.x-e.getPoint().x, dragStart.y-e.getPoint().y);
+					if(!(movement.x==0 && movement.y==0)) {
+						setCursor(new Cursor(Cursor.WAIT_CURSOR));
+						MapPoint p = new MapPoint(Map.map_width / 2, Map.map_height / 2);
+						p.translate(movement);
+						map.adjustPosition(p.toPoint());
+						map.refresh();
+						reloadImage();
+						repaint();
+					}
+				}
+			}
+			public void mouseEntered(MouseEvent arg0) {}
+		});
+		
+		addMouseWheelListener(new MouseWheelListener() {
+			@Override
+			public void mouseWheelMoved(MouseWheelEvent e) {
+				if (e.getWheelRotation() < 0) {
+					// wheel moved UP
+					// Zoom In
+					setCursor(new Cursor(Cursor.WAIT_CURSOR));
+					map.zoomIn(e.getPoint());
+					reloadImage();
+				} else {
+					// wheel moved DOWN
+					// Zoom Out
+					setCursor(new Cursor(Cursor.WAIT_CURSOR));
+					map.zoomOut();
+					reloadImage();
+				}
+			}
+		});
+	}
+
+	public boolean isImageReady() {
+		if(map.getCurrentMapTile()==null) {
+			return false;
+		} else {
+			return (checkImage(map.getCurrentMapTile().getImage(), this) & ImageObserver.ALLBITS) != 0;
+		}
+	}
+	
+	public void reloadImage() {
+		setCursor(new Cursor(Cursor.WAIT_CURSOR));
+		isBufferReady = false;
+		prepareImage(map.getCurrentMapTile().getImage(), this);
+		updateImage();
+	}
+	
+	public void init() {
+		backimage = createImage(2048, 1536);
+		backbuffer = backimage.getGraphics();
+		makeBuffer();
+	}
+
+	private boolean makeBuffer() {
+		if (map != null && map.getCurrentMapTile() != null) {
+			backbuffer.drawImage(map.getCurrentMapTile().getImage(), 0, 0, this);
+			isBufferReady = true;
+			setCursor(null);
+			return true;
+		}
+		return false;
+	}
+
+	public boolean imageUpdate(Image img, int infoflags, int x, int y, int width, int height) {
+		updateImage();
+		return true;
+	}
+	
+	private void updateImage() {
+		if (isImageReady()) {
+			makeBuffer();
+			dragCurrent.setLocation(0, 0);
+			repaint();
+		}
+	}
+	
+	private void paintBufferToScreen(Graphics g) {
+		if (this.isVisible()) {
+			g.setColor(Color.white);
+			g.fillRect(0, 0, (int)Map.map_width, (int)Map.map_height);
+			g.drawImage(backimage, (int) (dragCurrent.x), (int) (dragCurrent.y), this);
+		}
+	}
+
+	@Override
+	protected void paintComponent(Graphics g) {
+		paintBufferToScreen(g);
+	}
+
+	@Override
+	public void update(Graphics g) {
+		paintComponent(g);
+	}
+
+	@Override
+	public void paint(Graphics g) {
+		if (this.isVisible()) {
+			update(g);
+		}
+	}
+}

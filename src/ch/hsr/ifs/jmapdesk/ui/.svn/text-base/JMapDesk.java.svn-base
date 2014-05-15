@@ -1,0 +1,145 @@
+/**
+ * 
+ * JMapDesk - UMN MapServer for your Desktop
+ * Copyright (C) 2008
+ * HSR University of Applied Science Rapperswil
+ * IFS Institute for Software
+ *
+ * JMapDesk is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * JMapDesk is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with JMapDesk.  If not, see <http://www.gnu.org/licenses/>.
+ * 
+ */
+
+package ch.hsr.ifs.jmapdesk.ui;
+
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.Properties;
+
+import ch.hsr.ifs.jmapdesk.mapfile.MapFileLayer;
+
+public class JMapDesk {
+
+	public static final boolean DEBUG = true;
+	
+	static JMapDesk_GUI mapdeskgui;
+	static final String PROPSFILE = "jmapdesk.cfg";
+	private static String version = "0.9.5.4";
+	private Properties properties = new Properties();
+	static String text;
+	
+	public static void main(String[] args) {
+		new JMapDesk();
+	}
+	
+	public JMapDesk() {
+		if (!DEBUG) {
+			new SplashScreen();
+		}
+		mapdeskgui = new JMapDesk_GUI(this);
+		mapdeskgui.show(version);
+	}
+	
+	/**
+	 * check if shp2img gives errors
+	 * 
+	 * @param mapFile
+	 */
+	void check_mapfile(File mapFile) {
+		loadProperties();
+		String cmd = null;
+		String shp2img = properties.getProperty("shp2img.location");
+		File dir = new File(System.getProperty("java.io.tmpdir") + File.separator + "jmapdesk-maps");
+		dir.mkdirs();
+		String output = dir.toString() + File.separator + "shp2img_check.png";
+		if (System.getProperty("os.name").toLowerCase().contains("linux")) {
+			String set_fwtools = "PATH=$PATH:" + shp2img.replace("/shp2img", "");
+			String exec = shp2img + " -m " + mapFile + " -o " + output + " -map_debug 1";
+			File tempfile = new File(System.getProperty("java.io.tmpdir") + File.separator + "_jmdesk_ss.sh");
+			BufferedWriter bw;
+			try {
+				bw = new BufferedWriter(new FileWriter(tempfile));
+				bw.write("#!/bin/bash");
+				bw.newLine();
+				bw.write(set_fwtools);
+				bw.newLine();
+				bw.write(exec);
+				bw.close();
+			} catch (IOException e) {
+				System.out.println(e);
+			}
+			cmd = "sh " + tempfile;
+			tempfile.delete();
+		} else if (System.getProperty("os.name").toLowerCase().contains("windows")) {
+			String set_fwtools = "set FWTOOLS_DIR=" + shp2img.replace("\\bin\\shp2img.exe", "");
+			String call_fwtools = "call \"%FWTOOLS_DIR%\\bin\\setfwenv.bat\"";
+			cmd = "cmd /c " + set_fwtools + "&&" + call_fwtools + "&&"
+				+ "shp2img.exe"	+ " -m " + "\"" + mapFile + "\"" + " -o " + "\"" + output + "\"" + " -map_debug 1";
+		}
+		Runtime runtime = Runtime.getRuntime();
+		try {
+			Process p = runtime.exec(cmd);
+			BufferedReader br = null;
+			StringBuffer sb = new StringBuffer();
+			br = new BufferedReader(new InputStreamReader(p.getErrorStream()));
+			while ((text = br.readLine()) != null) {
+				sb.append(text + "\n").trimToSize();
+			}
+			br = new BufferedReader(new InputStreamReader(p.getInputStream()));
+			while ((text = br.readLine()) != null) {
+				sb.append(text + "\n").trimToSize();
+			}
+			br.close();
+			text = String.valueOf(sb).trim();
+		} catch (IOException e) {
+			System.out.println(e);
+		}
+	}
+	
+	/**
+	 * update LayerPanel
+	 */
+	void update_layers() {
+		ArrayList<MapFileLayer> layers = new ArrayList<MapFileLayer>(mapdeskgui.mapfile.getLayers());
+		mapdeskgui.mapfile.update_layers(layers);
+		for (MapFileLayer l: mapdeskgui.mapfile.getLayers()) {
+			l.addCheckBoxActionListener(new ActionListener() {
+				public void actionPerformed(ActionEvent e) {
+					JMapDesk_GUI.map.updateVersion();
+					JMapDesk_GUI.map.refresh();
+					mapdeskgui.viewComponent.reloadImage();
+				}
+			});
+			JMapDesk_GUI.layerPanel.add(l.getCheckBox());
+		}
+	}
+	
+	/**
+	 * load Properties 
+	 */
+	private void loadProperties() {
+		try {
+			properties.load(new FileInputStream(PROPSFILE));
+		} catch (IOException e) {
+			System.out.println(e);
+		}
+	}
+}

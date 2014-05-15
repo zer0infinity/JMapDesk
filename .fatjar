@@ -1,0 +1,14 @@
+#Fat Jar Configuration File
+#Wed Apr 02 11:08:35 CEST 2008
+onejar.license.required=true
+manifest.classpath=
+manifest.removesigners=true
+onejar.checkbox=false
+jarname=jmapdesk.jar
+manifest.mergeall=true
+manifest.mainclass=ch.hsr.mapdesk.ui.JMapDesk
+manifest.file=<createnew>
+jarname.isextern=false
+onejar.expand=
+excludes=
+includes=

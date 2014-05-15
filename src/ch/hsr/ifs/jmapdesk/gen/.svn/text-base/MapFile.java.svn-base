@@ -1,0 +1,214 @@
+/**
+ * This file is part of JMapDesk.
+ * 
+ * JMapDesk is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * JMapDesk is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with JMapDesk.  If not, see <http://www.gnu.org/licenses/>.
+ * 
+ */
+
+package ch.hsr.ifs.jmapdesk.gen;
+
+import java.io.File;
+import java.util.Random;
+
+public class MapFile {
+	/**
+	 * Mapfile Template
+	 */
+	
+	/**
+	 * Map
+	 * 
+	 * @param extent Extend
+	 * @return
+	 */
+	String get_start(String extent) {
+		String start =
+			"MAP" + "\n" +
+			"  NAME Schweiz" + "\n" +
+			"  EXTENT " + extent + "\n" +
+			"  UNITS METERS" + "\n" +
+			"  SHAPEPATH \"data\"" + "\n" +
+			"  SIZE 600 400" + "\n" +
+			"  IMAGETYPE JPEG" + "\n" +
+			"  TRANSPARENT ON" + "\n";
+		return start;
+	}
+	
+	/**
+	 * Map end
+	 * 
+	 * @return
+	 */
+	String get_end() {
+		String end =
+			"\n" +
+			"END # Map File";
+		return end;
+	}
+	
+	/**
+	 * Add Layers
+	 * 
+	 * @param layer Layer
+	 * @return
+	 */
+	String add_layer(Layer layer) {
+		String layertype = layer.getType();
+		Random random = new Random();
+		String add_layer = 
+			"\n" +
+			"  LAYER" + "\n" +
+			"    NAME " + layer.getName() + "\n" + 
+			"    TYPE " + layer.getType() + "\n";
+		if (layertype.equalsIgnoreCase("raster")) {
+			add_layer = add_layer.concat("    DATA \"" + layer.getData() + ".jpg\""+ "\n");
+		} else {
+			add_layer = add_layer.concat("    DATA " + layer.getData() + "\n");
+		}
+		String add_status =
+			"    STATUS ON" + "\n";
+		add_layer = add_layer.concat(add_status);
+		if (layertype.equalsIgnoreCase("raster")) {
+			add_layer = add_layer.concat("    TRANSPARENCY 100" + "\n\n");
+		} else if (layertype.equalsIgnoreCase("polygon") || layertype.equalsIgnoreCase("point")) {
+			add_layer = add_layer.concat("    TRANSPARENCY 60" + "\n\n");
+		} else {
+			add_layer = add_layer.concat("\n");
+		}
+		String add_class =
+			"    CLASS" + "\n" +
+			"      NAME \"" + layer.getClassName() + "\"\n";
+		add_layer = add_layer.concat(add_class);
+		String add_polygon =
+			"      STYLE" + "\n" +
+			"        COLOR " + random.nextInt(255) + " " + random.nextInt(255) + " " + random.nextInt(255) + "\n" +
+			"        OUTLINECOLOR 0 0 0 # schwarz" + "\n" +
+			"      END" + "\n";
+		String add_point =
+		    "      STYLE" + "\n" +
+		    "        COLOR " + random.nextInt(255) + " " + random.nextInt(255) + " " + random.nextInt(255) + "\n" +
+		    "        SYMBOL 'square'" + "\n" +
+		    "        SIZE 7" + "\n" +
+		    "      END" + "\n";
+		String add_line =
+		    "	   STYLE" + "\n" +
+		    "		 COLOR 0 0 0"  + "\n" +
+		    "		 WIDTH 4" + "\n" +
+		    "	   END" + "\n";
+		if (layertype.equalsIgnoreCase("polygon")) {
+			add_layer = add_layer.concat(add_polygon);
+		} else if (layertype.equalsIgnoreCase("point")) {
+			add_layer = add_layer.concat(add_point);
+		} else if (layertype.equalsIgnoreCase("line")) {
+			add_layer = add_layer.concat(add_line);
+		}
+		String add_layer_end =
+			"    END" + "\n" +
+			"  END" + "\n";
+		add_layer = add_layer.concat(add_layer_end);
+		return add_layer;
+	}
+	
+	/**
+	 * Add an Image
+	 * 
+	 * @param name Filename/Name
+	 * @return
+	 */
+	String add_image(String name) {
+		String filename = name.toLowerCase();
+		String[] ext = { ".png", ".gif", ".tiff", ".tif", ".jpeg", ".jpg" };
+		for (int i = 0; i < ext.length; i++) {
+			name = name.replace(ext[i], "");
+		}
+		String add_image =
+			"\n" +
+			"  LAYER" + "\n" +
+			"    NAME " + name + "\n" +
+			"    TYPE RASTER" + "\n" +
+			"    DATA \"" + filename + "\"" + "\n" +
+			"    STATUS ON" + "\n" +
+			"    TRANSPARENCY 60" + "\n" +
+			"\n" +
+			"    CLASS" + "\n" +
+			"      NAME '" + name + "'" + "\n" +
+			"    END" + "\n" +
+			"  END" + "\n";
+		return add_image;
+	}
+	
+	/**
+	 * WMS
+	 * 
+	 * @return
+	 */
+	String add_wms_pre() {
+		String add_wms_pre =
+		  "\n" + 
+		  "  WEB" + "\n" +
+		  "    IMAGEPATH \"" + System.getProperty("java.io.tmpdir") + File.separator + "\"" + "\n" +
+		  "    IMAGEURL \"/\"" + "\n" +
+		  "    METADATA" + "\n" +
+		  "      \"wms_srs\"      \"EPSG:4326\"" + "\n" +
+		  "      \"wms_title\"    \"Served by UMN MapServer\"" + "\n" +
+		  "    END" + "\n" +
+		  "  END" + "\n";
+		return add_wms_pre;
+	}
+	
+	/**
+	 * Add WMS
+	 * 
+	 * @param layer Layer
+	 * @return
+	 */
+	String add_wms(Layer layer) {
+		String add_wms =
+		  "\n" +
+		  "  # LAYER Sektion" + "\n" +
+		  "  LAYER" + "\n" +
+		  "    NAME             \"" + layer.getName() + "\"" + "\n" +
+		  "    TYPE             RASTER" + "\n" +
+		  "    STATUS           " + layer.getStatus().toUpperCase() + "\n" +
+		  "    CONNECTION       \"" + layer.getURL() + "\"" + "\n" +
+		  "    CONNECTIONTYPE   WMS" + "\n" +
+		  "\n" +
+		  "    METADATA" + "\n" +
+		  "       \"wms_srs\"      \"EPSG:4326\"" + "\n" +
+		  "       \"wms_title\"    \"" + layer.getName() + "\"" + "\n" +
+		  "       \"wms_name\"     \"" + layer.getName() + "\"" + "\n" +
+		  "       \"wms_server_version\" \"1.1.1\"" + "\n" +
+		  "       \"wms_format\"   \"image/" + layer.getFormat() + "\"" + "\n" +
+		  "    END" + "\n" +
+		  "  END" + "\n";
+		return add_wms;
+	}
+	
+	/**
+	 * Add a Symbol
+	 * 
+	 * @return
+	 */
+	String add_symbol() {
+		String add_symbol =
+			"\n" +
+			"  SYMBOL" + "\n" +
+		    "    NAME 'square'" + "\n" +
+		    "    TYPE VECTOR" + "\n" +
+		    "    FILLED TRUE" + "\n" +
+		    "    POINTS 0 0 0 1 1 1 1 0 0 0 END" + "\n" +
+			"  END" + "\n";
+		return add_symbol;
+	}
+}

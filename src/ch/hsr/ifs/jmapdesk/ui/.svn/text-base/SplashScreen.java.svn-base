@@ -1,0 +1,51 @@
+/**
+ * This file is part of JMapDesk.
+ * 
+ * JMapDesk is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * JMapDesk is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with JMapDesk.  If not, see <http://www.gnu.org/licenses/>.
+ * 
+ */
+
+package ch.hsr.ifs.jmapdesk.ui;
+
+import java.awt.Dimension;
+import java.awt.Toolkit;
+
+import javax.swing.ImageIcon;
+import javax.swing.JLabel;
+import javax.swing.JWindow;
+
+public class SplashScreen extends JWindow {
+	
+	/**
+	 * Simple Splash
+	 */
+
+	private static final long serialVersionUID = 1L;
+
+	public SplashScreen() {
+		JLabel label = new JLabel(new ImageIcon(getClass().getResource("/ch/hsr/ifs/jmapdesk/ui/images/startscreen.png")));
+		add(label);
+		pack();
+		Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+		setLocation((screenSize.width - label.getWidth()) / 2, (screenSize.height - label.getHeight()) / 2);
+		setAlwaysOnTop(true);
+		setVisible(true);
+		try {
+			Thread.sleep(1600);
+		} catch (InterruptedException e) {
+			System.out.println(e);
+		}
+		dispose();
+	}
+}

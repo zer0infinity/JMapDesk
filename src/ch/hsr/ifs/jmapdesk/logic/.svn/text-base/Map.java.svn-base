@@ -1,0 +1,208 @@
+/**
+ * This file is part of JMapDesk.
+ * 
+ * JMapDesk is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * JMapDesk is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with JMapDesk.  If not, see <http://www.gnu.org/licenses/>.
+ * 
+ */
+
+package ch.hsr.ifs.jmapdesk.logic;
+
+import java.awt.Point;
+import java.awt.geom.Rectangle2D;
+import java.util.HashMap;
+
+import ch.hsr.ifs.jmapdesk.mapfile.MapFile;
+import ch.hsr.ifs.jmapdesk.util.MapPoint;
+import ch.hsr.ifs.jmapdesk.wrapper.InvalidBinaryException;
+import ch.hsr.ifs.jmapdesk.wrapper.MapLoader;
+
+public class Map {
+	
+	public final double ZOOM_BASE = 1.8;
+	private double width;
+	private double height;
+	private Rectangle2D.Double extent;
+	private MapFile mapfile;
+	private HashMap<Integer,MapTile> maps;
+	private int level = 0;
+	private MapPoint position;
+	private MapLoader loader;
+	public static double map_width;
+	public static double map_height;
+	
+	public Map(MapFile mapfile, String shp2imgPath) throws InvalidBinaryException {
+		this.mapfile = mapfile;
+		this.extent = mapfile.getFullExtent();
+		this.width = mapfile.getSize().getWidth();
+		this.height = mapfile.getSize().getHeight();
+		maps = new HashMap<Integer,MapTile>();
+		position = new MapPoint(this.extent.getWidth()/2, this.extent.getHeight()/2);
+		loader = new MapLoader(shp2imgPath);
+		refresh();
+	}
+	
+	public double getYFactor() {
+		return extent.getHeight()/ map_height;
+	}
+	
+	public double getXFactor() {
+		return extent.getWidth()/ map_width;
+	}
+	
+	public double getXOffset() {
+		return extent.getMinX();
+	}
+	
+	public double getYOffset() {
+		return extent.getMinY();
+	}
+	
+	public void refresh() {
+		maps.put(level, new MapTile(new MapPoint(position), this.level, this));
+	}
+	
+	public HashMap<Integer,MapTile> getMapTile() {
+		return maps;
+	}
+
+	public MapTile getLevelMapTile() {
+		return maps.get(level);
+	}
+	
+	public MapTile getCurrentMapTile() {
+		if(maps.get(level)==null){
+			return null;
+		}
+		return maps.get(level);
+	}
+	public double getImageHeight() {
+		return height;
+	}
+	
+	public double getImageWidth() {
+		return width;
+	}
+	
+	public double getMapWidth() {
+		return extent.getWidth();
+	}
+	
+	public double getMapHeight() {
+		return extent.getHeight();
+	}
+	
+	public String getMapAbsolutePath() {
+		return mapfile.getFile().getAbsolutePath();
+	}
+	
+	public int getLevel() {
+		return level + 1;
+	}
+
+	public void setLevel(int level) {
+		this.level = level;
+	}
+
+	public void zoomOut() {
+		if (level > 0) {
+			this.level --;
+			refresh();
+		}
+	}
+	
+	public void zoomExtent() {
+		level = 0;
+		position = new MapPoint(this.extent.getWidth()/2, this.extent.getHeight()/2);
+		refresh();
+	}
+	
+	public void zoomIn() {
+		if (level < 13) {
+			this.level ++;
+			refresh();
+		}
+	}
+
+	public void zoomIn(Point pos) {
+		if (level < 13) {
+			adjustPosition(pos);
+			this.level ++;
+			refresh();
+		}
+	}
+
+	private MapPoint translateScreenToExtents(Point movement) {
+		MapPoint p = new MapPoint();
+		p.x = getXFactor()*movement.x;
+		p.y = getYFactor()*movement.y;
+		return p;
+	}
+	
+	public void adjustPosition(Point movement) {
+		movement.translate(-(int)map_width/2, -(int)map_height/2);
+		movement.y *= -1;
+		MapPoint mp = translateScreenToExtents(movement);
+		double x = ((mp.x)/Math.pow(ZOOM_BASE,level));
+		double y = ((mp.y)/Math.pow(ZOOM_BASE,level));
+		position.translate(x, y);
+	}
+	
+	public MapPoint getPosition() {
+		return position;
+	}
+
+	public void setPosition(Point pos) {
+		MapPoint mp = translateScreenToExtents(pos);
+		position.setLocation(mp.x, height-mp.y);
+	}
+
+	public MapLoader getMapLoader() {
+		return loader;
+	}
+
+	public void updateVersion() {
+		maps.clear();		
+		loader.cleanUp();
+		loader.updateVersion();
+	}
+
+	public MapFile getMapfile() {
+		return mapfile;
+	}
+	
+	/**
+	 * some math :)
+	 * calculate mapsize in a resized window
+	 */
+	public void calc_map_size(int viewcomponent_height, int viewcomponent_width) {
+		// MapFrame width
+		double height = viewcomponent_height;
+		// MapFrame height
+		double width = viewcomponent_width;
+		// ratio_width ratio of resized mapwindow width and the mapimage width
+		double ratio_width = width/ this.width;
+		// ratio_heigth ratio of resized mapwindow height and the mapimage height
+		double ratio_height = height/ this.height;
+		// calc some ratio
+		double ratio_image_width = this.width/ this.height;
+		double ratio_image_height = this.height/ this.width;
+		if (ratio_width < ratio_height) {
+			map_width = width;
+			map_height = width*ratio_image_height;
+		} else {
+			map_height = height;
+			map_width = height*ratio_image_width;
+		}
+	}
+}

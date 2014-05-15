@@ -1,0 +1,153 @@
+package ch.hsr.ifs.jmapdesk.ui;
+
+import java.awt.Dimension;
+import java.awt.Toolkit;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.KeyEvent;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.util.Properties;
+
+import javax.swing.JButton;
+import javax.swing.JComponent;
+import javax.swing.JDialog;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
+import javax.swing.KeyStroke;
+
+public class ErrorBox {
+	
+	private Properties properties = new Properties();
+	private JButton closebutton;
+	private JButton copybutton;
+	private JScrollPane sp;
+	JDialog dialog;
+	
+	/**
+	 * show warnings from shp2img
+	 * 
+	 * @param size MainGUI windowsize
+	 */
+	void show_log(Dimension size) {
+		GUI_Components guic = new GUI_Components();
+		loadProperties();
+		dialog = new JDialog();
+		dialog.setTitle("JMapDesk - Mapfile Warning Log");
+		dialog.setSize(size.width, 170);
+		dialog.setResizable(false);
+		dialog.setAlwaysOnTop(true);
+		dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+		
+		JPanel panel = new JPanel();
+		panel.setLayout(null);
+		
+		final JTextArea ta = new JTextArea();
+		ta.setText(JMapDesk.text);
+		ta.setDragEnabled(true);
+		ta.setEditable(false);
+		ta.setComponentPopupMenu(guic.popupMenu(ta));
+		
+		sp = new JScrollPane(ta);
+		sp.setWheelScrollingEnabled(true);
+		sp.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+		sp.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+		sp.setBounds(0,0, size.width-5, 120);
+		
+		copybutton = new JButton();
+		copybutton.setBounds(size.width-230, 122, 110, 20);
+		copybutton.setText("Copy");
+		copybutton.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				ta.selectAll();
+				ta.copy();
+			}
+		});
+		closebutton = new JButton();
+		closebutton.setBounds(size.width-120, 122, 110, 20);
+		closebutton.setText("Close");
+		closebutton.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				dialog.dispose();
+			}
+		});
+		
+		// Escape = Close Window
+		ActionListener cancelListener = new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				dialog.dispose();
+			}
+		};
+		dialog.getRootPane().registerKeyboardAction(cancelListener, KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), JComponent.WHEN_IN_FOCUSED_WINDOW);
+		
+		set_location(size);
+		
+		JComponent[] components = { sp, closebutton, copybutton };
+		for (JComponent comp: components) {
+			panel.add(comp);
+		}
+		dialog.add(panel);
+		dialog.setVisible(true);
+	}
+
+	/**
+	 * update warning log window location
+	 * 
+	 * @param size MainGUI windowsize
+	 */
+	void set_location(Dimension size) {
+		if (dialog != null) {
+			loadProperties();
+			Dimension screensize = Toolkit.getDefaultToolkit().getScreenSize();
+			int height = screensize.height;
+			int posx = Integer.valueOf(properties.getProperty("position.x"));
+			int posy = Integer.valueOf(properties.getProperty("position.y"));
+			if (posy - 170 < 0 && posy + size.height + 170 > height) {
+				dialog.setBounds(size.width - 605, size.height - JMapDesk_GUI.toolbar.getHeight() - 160, 600, 170);
+				closebutton.setLocation(480, 122);
+				copybutton.setLocation(370, 122);
+				sp.setSize(595, 120);
+			} else if (posy + size.height + 170 > height) {
+				dialog.setBounds(posx, posy - 170, size.width, 170);
+				update_location(size);
+			} else {
+				dialog.setBounds(posx, posy + size.height, size.width, 170);
+				update_location(size);
+			}
+		}
+	}
+	
+	/**
+	 * update JComponents location
+	 * 
+	 * @param size MainGUI windowsize
+	 */
+	private void update_location(Dimension size) {
+		closebutton.setLocation(size.width-120, 122);
+		copybutton.setLocation(size.width-230, 122);
+		sp.setSize(size.width-5, 120);
+	}
+
+	/**
+	 * close warning log if opened
+	 */
+	void close_log() {
+		if (dialog != null)
+			if (dialog.isShowing())
+				dialog.dispose();
+	}
+	
+	/**
+	 * load Properties 
+	 */
+	private void loadProperties() {
+		try {
+			properties.load(new FileInputStream(JMapDesk.PROPSFILE));
+		} catch (IOException e) {
+			System.out.println(e);
+		}
+	}
+}

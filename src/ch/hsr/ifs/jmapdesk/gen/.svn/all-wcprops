@@ -1,0 +1,47 @@
+K 25
+svn:wc:ra_dav:version-url
+V 63
+/svnroot/jmapdesk/!svn/ver/76/trunk/src/ch/hsr/ifs/jmapdesk/gen
+END
+Container.java
+K 25
+svn:wc:ra_dav:version-url
+V 78
+/svnroot/jmapdesk/!svn/ver/83/trunk/src/ch/hsr/ifs/jmapdesk/gen/Container.java
+END
+WMSDialog.java
+K 25
+svn:wc:ra_dav:version-url
+V 78
+/svnroot/jmapdesk/!svn/ver/83/trunk/src/ch/hsr/ifs/jmapdesk/gen/WMSDialog.java
+END
+MapGen.java
+K 25
+svn:wc:ra_dav:version-url
+V 75
+/svnroot/jmapdesk/!svn/ver/83/trunk/src/ch/hsr/ifs/jmapdesk/gen/MapGen.java
+END
+MapGen_GUI.java
+K 25
+svn:wc:ra_dav:version-url
+V 79
+/svnroot/jmapdesk/!svn/ver/83/trunk/src/ch/hsr/ifs/jmapdesk/gen/MapGen_GUI.java
+END
+Layer.java
+K 25
+svn:wc:ra_dav:version-url
+V 74
+/svnroot/jmapdesk/!svn/ver/81/trunk/src/ch/hsr/ifs/jmapdesk/gen/Layer.java
+END
+LayerPanel.java
+K 25
+svn:wc:ra_dav:version-url
+V 79
+/svnroot/jmapdesk/!svn/ver/83/trunk/src/ch/hsr/ifs/jmapdesk/gen/LayerPanel.java
+END
+MapFile.java
+K 25
+svn:wc:ra_dav:version-url
+V 76
+/svnroot/jmapdesk/!svn/ver/83/trunk/src/ch/hsr/ifs/jmapdesk/gen/MapFile.java
+END

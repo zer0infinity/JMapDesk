@@ -1,0 +1,56 @@
+/**
+ * This file is part of JMapDesk.
+ * 
+ * JMapDesk is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * JMapDesk is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with JMapDesk.  If not, see <http://www.gnu.org/licenses/>.
+ * 
+ */
+
+package ch.hsr.ifs.jmapdesk.mapfile;
+
+import java.util.ArrayList;
+
+public class TagList extends ArrayList<String> {
+
+	private static final long serialVersionUID = 1L;
+	
+	public void removeCurrent() {
+		if(this.size()>0) {
+			this.remove(this.size()-1);
+		}
+	}
+	
+	public String getCurrent(int offset) {
+		if(this.size()==0) {
+			return "";
+		} else {
+			return this.get(this.size()-(offset+1));
+		}
+	}
+	
+	public String getCurrent() {
+		return getCurrent(0);
+	}
+	public boolean isParent(String name, int offset) {
+		return name.equalsIgnoreCase(this.getCurrent(offset));
+	}
+	
+	public boolean isParent(String name) {
+		return isParent(name,1);
+	}
+	
+	public boolean isCurrent(String name) {
+		return name.equalsIgnoreCase(this.getCurrent());
+	}
+	
+}

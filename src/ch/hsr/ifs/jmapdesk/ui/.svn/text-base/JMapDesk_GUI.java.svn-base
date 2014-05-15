@@ -1,0 +1,927 @@
+/**
+ * This file is part of JMapDesk.
+ * 
+ * JMapDesk is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * JMapDesk is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with JMapDesk.  If not, see <http://www.gnu.org/licenses/>.
+ * 
+ */
+
+package ch.hsr.ifs.jmapdesk.ui;
+
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Cursor;
+import java.awt.Dimension;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.Image;
+import java.awt.Point;
+import java.awt.Rectangle;
+import java.awt.Toolkit;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.ComponentEvent;
+import java.awt.event.ComponentListener;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseMotionListener;
+import java.awt.event.WindowEvent;
+import java.awt.event.WindowListener;
+import java.awt.image.BufferedImage;
+import java.awt.image.CropImageFilter;
+import java.awt.image.FilteredImageSource;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.util.Properties;
+
+import javax.imageio.ImageIO;
+import javax.swing.BorderFactory;
+import javax.swing.BoxLayout;
+import javax.swing.ImageIcon;
+import javax.swing.JButton;
+import javax.swing.JFileChooser;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
+import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JToggleButton;
+import javax.swing.JToolBar;
+import javax.swing.event.MouseInputAdapter;
+import javax.swing.filechooser.FileFilter;
+import javax.swing.filechooser.FileNameExtensionFilter;
+
+import ch.hsr.ifs.jmapdesk.gen.MapGen_GUI;
+import ch.hsr.ifs.jmapdesk.logic.Map;
+import ch.hsr.ifs.jmapdesk.mapfile.MapFile;
+import ch.hsr.ifs.jmapdesk.mapfile.MapFileLayer;
+import ch.hsr.ifs.jmapdesk.wrapper.InvalidBinaryException;
+
+public class JMapDesk_GUI extends JFrame implements WindowListener {
+	
+	/**
+	 * JMapDesk GUI
+	 */
+	private static final long serialVersionUID = 1L;
+	
+	private static final String LBL_WELCOME = "Welcome to JMapDesk";
+	private final String programName = "JMapDesk";
+	private final String tempmap = "_jmap_tmp.map";
+
+	private static final String PROPSFILE = JMapDesk.PROPSFILE;
+	private static final String P_SHP2IMG = "shp2img.location";
+	private static final String P_OGRINFO = "ogrinfo.location";
+	private static final String P_WINDOWS_POS_X = "position.x";
+	private static final String P_WINDOWS_POS_Y = "position.y";
+	private static final String P_BROWSE_LOCATION = "browse.location";
+	
+	public static Dimension windowsize = null;
+	private double mousePosX;
+	private double mousePosY;
+	private SelectArea area = null;
+	private File file;
+	private String path;
+	private String format = "";
+	static Map map = null;
+	ViewComponent viewComponent = null;
+	JMapDesk mapdesk;
+	MapGen_GUI mapgengui;
+	MapFile mapfile;
+	ErrorBox errbox;
+	BufferedImage bimage = null;
+	
+	public static JPanel layerPanel = new JPanel();
+	public static JToolBar toolbar = new JToolBar();
+	public static JMenuBar mbar = new JMenuBar();
+	public static JLabel statusLabel = new JLabel(LBL_WELCOME);
+	private JPanel mainPanel = new JPanel();
+	private Properties properties = new Properties();
+	private JLabel startScreen = new JLabel(new ImageIcon(getClass().getResource("/ch/hsr/ifs/jmapdesk/ui/images/startscreen.png")));
+	
+	JMenuItem openItem;
+	JMenuItem closeItem;
+	JMenuItem quitItem;
+	JMenuItem copyItem;
+	JMenuItem copyfileItem;
+	JMenuItem zoomInItem;
+	JMenuItem zoomOutItem;
+	JMenuItem zoomExtentsItem;
+	JMenuItem refreshItem;
+	JMenuItem errboxItem;
+	JMenuItem mapgenItem;
+	
+	JButton copyButton;
+	JButton zoomInButton;
+	JButton zoomOutButton;
+	JButton zoomExtentsButton;
+	JButton refreshButton;
+	JToggleButton dragButton;
+	JToggleButton selectButton;
+	
+	public JMapDesk_GUI(final JMapDesk mapdesk) {
+		this.mapdesk = mapdesk;
+		errbox = new ErrorBox();
+		frame_listener();
+	}
+	
+	/**
+	 * JFrame ComponentListener
+	 */
+	private void frame_listener() {
+		loadProperties();
+		addComponentListener(new ComponentListener() {
+			boolean isShown = false;
+			
+			@Override
+			public void componentHidden(ComponentEvent e) {}
+			@Override
+			public void componentMoved(ComponentEvent e) {
+				windowsize = getSize();
+				update_location();
+			}
+			@Override
+			public void componentResized(ComponentEvent e) {
+				windowsize = getSize();
+				if (area != null && mapdesk != null) {
+					mainPanel.remove(area);
+					viewComponent.setVisible(true);
+					dragButton.setSelected(true);
+					selectButton.setSelected(false);
+					setButtons(true, false);
+				}
+				if (map != null) {
+					map.calc_map_size(viewComponent.getHeight(), viewComponent.getWidth());
+					map.updateVersion();
+					map.refresh();
+					viewComponent.reloadImage();
+				}
+				update_location();
+			}
+			@Override
+			public void componentShown(ComponentEvent e) {
+				storeProperties();
+				isShown = true;
+			}
+			
+			private void update_location() {
+				if (isShown) {
+					storeProperties();
+					if (errbox != null)
+						errbox.set_location(windowsize);
+					if (mapgengui != null)
+						mapgengui.set_location(windowsize);
+				}
+			}
+		});
+	}
+	
+	/**
+	 * Show JMapDesk GUI
+	 * 
+	 * @param mapdesk
+	 * @param programVersion Version Number
+	 */
+	void show(final String programVersion) {
+		final GUI_Components guic = new GUI_Components();
+		
+		// File Menu
+		final String LBL_FILE = "File";
+		final String LBL_OPEN = "Open Mapfile...";
+		final String LBL_CLOSE = "Close";
+		final String LBL_EXIT = "Exit";
+		
+		ActionListener filelistener = new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				if (e.getActionCommand() == LBL_OPEN) {
+					delete_tempmap();
+					JFileChooser fc = guic.file_chooser();
+					fc.setDialogTitle("Open Mapfile...");
+					fc.setFileFilter(new FileNameExtensionFilter("*.map; *.txt", new String[] { "map", "txt" }));
+					if(properties.containsKey(P_BROWSE_LOCATION)) {
+						fc.setCurrentDirectory(new File(properties.getProperty(P_BROWSE_LOCATION)));
+					}
+					if(fc.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
+						setCursor(new Cursor(Cursor.WAIT_CURSOR));
+						if (viewComponent != null) {
+							viewComponent.setCursor(new Cursor(Cursor.WAIT_CURSOR));
+						}
+						try {
+							Thread.sleep(1000);
+						} catch (InterruptedException e1) {
+							System.out.println(e1);
+						}
+						file = fc.getSelectedFile();
+						path = fc.getCurrentDirectory().toString() + File.separator;
+						if (errbox != null) {
+							errbox.close_log();
+						}
+						remove_area();
+						File tempmapfile = new File(path + tempmap);
+						mapfile = new MapFile(file, tempmapfile);
+						mapdesk.check_mapfile(tempmapfile);
+						loadMapfile();
+						if (mapfile != null) {
+							setTitle(programName + " - " + file.getName() + " - " + mapfile.getName());
+						}
+						if (!JMapDesk.text.isEmpty()) {
+							errbox.show_log(getSize());
+						}
+						properties.setProperty(P_BROWSE_LOCATION, fc.getCurrentDirectory().getAbsolutePath());
+						setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
+						if (viewComponent != null) {
+							viewComponent.setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
+						}
+					}
+				} else if (e.getActionCommand() == LBL_CLOSE) {
+					closeMap();
+				} else if (e.getActionCommand() == LBL_EXIT) {
+					exit();
+				}
+			}
+		};
+		JMenu filemenu = new JMenu(LBL_FILE);
+		filemenu.setMnemonic(KeyEvent.VK_F);
+		openItem = guic.create_menuItem_ctrlmask(LBL_OPEN, KeyEvent.VK_O);
+		closeItem = guic.create_menuItem_ctrlmask(LBL_CLOSE, KeyEvent.VK_W);
+		quitItem = guic.create_menuItem_ctrlmask(LBL_EXIT, KeyEvent.VK_Q);
+		JMenuItem[] fileItems = { openItem, closeItem, quitItem };
+		for (JMenuItem items: fileItems) {
+			items.addActionListener(filelistener);
+		}
+		filemenu.add(openItem);
+		filemenu.add(closeItem);
+		filemenu.addSeparator();
+		filemenu.add(quitItem);
+
+		// Edit Menu
+		final String LBL_EDIT = "Edit";
+		final String LBL_COPY = "Copy to Clipboard";
+		final String LBL_COPYFILE = "Copy to File...";
+		
+		ActionListener editlistener = new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				if ((e.getActionCommand() == LBL_COPY) && (map != null)) {
+					copy_event();
+			        statusLabel.setText("Map transfered to Clipboard...");
+				} else if (e.getActionCommand() == LBL_COPYFILE && map != null) {
+					copy_event();
+					loadProperties();
+					String P_BROWSE_LOCATION = "browse.location";
+					JFileChooser fileChooser = guic.file_chooser();
+					fileChooser.setDialogTitle("Save Image As...");
+					fileChooser.setFileFilter(new FileFilter() {
+						public boolean accept(File file) {
+							format = "png";
+							return file.getName().toLowerCase().endsWith(".png") || file.isDirectory();
+						}
+						public String getDescription() {
+							return "PNG (*.png)";
+						}
+					});
+					fileChooser.setFileFilter(new FileFilter() {
+						public boolean accept(File file) {
+							format = "gif";
+							return file.getName().toLowerCase().endsWith(".gif") || file.isDirectory();
+						}
+						public String getDescription() {
+							return "GIF (*.gif)";
+						}
+					});
+					fileChooser.setFileFilter(new FileFilter() {
+						public boolean accept(File file) {
+							format = "jpg";
+							return file.getName().toLowerCase().endsWith(".jpg")
+								|| file.getName().toLowerCase().endsWith(".jpeg")
+								|| file.getName().toLowerCase().endsWith(".jpe")
+								|| file.isDirectory();
+						}
+						public String getDescription() {
+							return "JPEG (*.jpg, *.jpeg, *.jpe)";
+						}
+					});
+					if(properties.containsKey(P_BROWSE_LOCATION)) {
+						fileChooser.setCurrentDirectory(new File(properties.getProperty(P_BROWSE_LOCATION)));
+					}
+					if (fileChooser.showSaveDialog(null) == JFileChooser.APPROVE_OPTION) {
+						String filename = fileChooser.getSelectedFile().getName();
+						String path = fileChooser.getCurrentDirectory().toString();
+						try {
+							ImageIO.write(bimage, format, new File(path + File.separator + filename + "." + format));
+						} catch (IOException e1) {
+							System.out.println(e);
+						}
+						statusLabel.setText("Map saved...");
+					}
+				}
+			}
+		};
+		JMenu editmenu = new JMenu(LBL_EDIT);
+		editmenu.setMnemonic(KeyEvent.VK_E);
+		copyItem = guic.create_menuItem_ctrlmask(LBL_COPY, KeyEvent.VK_C);
+		copyfileItem = guic.create_menuItem_ctrlmask(LBL_COPYFILE, KeyEvent.VK_S);
+		JMenuItem[] editItems = { copyItem, copyfileItem };
+		for (JMenuItem items: editItems) {
+			items.addActionListener(editlistener);
+			editmenu.add(items);
+		}
+		
+		// View Menu
+		final String LBL_ACTION = "View";
+		final String LBL_ZOOM_IN = "Zoom In";
+		final String LBL_ZOOM_OUT = "Zoom Out";
+		final String LBL_ZOOM_EXTENTS = "Zoom To Full Extents";
+		final String LBL_REFRESH = "Refresh";
+		final String LBL_ERRBOX = "Mapfile Warning Log";
+		
+		ActionListener viewlistener = new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				if(map != null) {
+					if(e.getActionCommand() == LBL_ZOOM_IN) {
+						map.zoomIn();
+						viewComponent.reloadImage();
+					} else if(e.getActionCommand() == LBL_ZOOM_OUT) {
+						map.zoomOut();
+						viewComponent.reloadImage();
+					} else if(e.getActionCommand() == LBL_ZOOM_EXTENTS) {
+						map.zoomExtent();
+						viewComponent.reloadImage();
+					} else if(e.getActionCommand() == LBL_REFRESH) {
+						remove_area();
+						new MapFile(file, new File(path + tempmap));
+						layerPanel.removeAll();
+						mapdesk.update_layers();
+						layerPanel.updateUI();
+						map.updateVersion();
+						map.refresh();
+						viewComponent.reloadImage();
+					} else if (e.getActionCommand() == LBL_ERRBOX) {
+						if (errbox.dialog == null) {
+							errbox.show_log(getSize());
+						} else if (!errbox.dialog.isShowing()) {
+							errbox.show_log(getSize());
+						} else if (errbox.dialog.isShowing()) {
+							errbox.dialog.dispose();
+						}
+					}
+				}
+			}
+		};
+		JMenu viewmenu = new JMenu(LBL_ACTION);
+		viewmenu.setMnemonic(KeyEvent.VK_V);
+		zoomInItem = guic.create_menuItem_char(LBL_ZOOM_IN, '+');
+		zoomOutItem = guic.create_menuItem_char(LBL_ZOOM_OUT, '-');
+		zoomExtentsItem = guic.create_menuItem_char(LBL_ZOOM_EXTENTS, 'e');
+		refreshItem = guic.create_menuItem_string(LBL_REFRESH, "F5");
+		errboxItem = guic.create_menuItem_string(LBL_ERRBOX, "F1");
+		JMenuItem[] viewItems = { zoomInItem, zoomOutItem, zoomExtentsItem, refreshItem, errboxItem };
+		for (int i = 0; i < viewItems.length; i++) {
+			if (i == 4) {
+				viewmenu.addSeparator();
+			}
+			viewItems[i].addActionListener(viewlistener);
+			viewmenu.add(viewItems[i]);
+		}
+		
+		// Tools Menu
+		final String LBL_TOOLS = "Tools";
+		final String LBL_MAPGEN = "Map Generator";
+		ActionListener toolslistener = new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				if (e.getActionCommand() == LBL_MAPGEN) {
+					if (mapgengui == null) {
+						mapgengui = new MapGen_GUI(getSize());
+					} else if (!mapgengui.isShowing()){
+						mapgengui = new MapGen_GUI(getSize());
+					} else if (mapgengui.isShowing()) {
+						mapgengui.dispose();
+					}
+				}
+			}
+		};
+		JMenu toolsmenu = new JMenu(LBL_TOOLS);
+		toolsmenu.setMnemonic(KeyEvent.VK_T);
+		mapgenItem = guic.create_menuItem_string(LBL_MAPGEN, "F11");
+		JMenuItem[] toolsItems = { mapgenItem };
+		for (JMenuItem items: toolsItems) {
+			items.addActionListener(toolslistener);
+			toolsmenu.add(mapgenItem);
+		}
+		
+		// Help Menu
+		final String LBL_HELP = "Help";
+		final String LBL_ABOUT = "About...";
+		
+		ActionListener helplistener = new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				if(e.getActionCommand() == LBL_ABOUT) {
+					String TXT_ABOUT =
+						programName + " " + programVersion + "\r\n" +
+						"Copyright (C) 2008" + "\r\n" +
+						"http://gis.hsr.ch/wiki/JMapDesk\r\n" +
+						"HSR Hochschule fuer Technik Rapperswil\r\n" +
+						"GISpunkt/ IFS Institut fuer Software\r\n\r\n" +
+						"Splashscreen by tpdkdesign.net\r\n" +
+						"Java version: " + System.getProperty("java.version") + "\r\n" +
+						"OS Name: " + System.getProperty("os.name");
+					JOptionPane.showMessageDialog(null, TXT_ABOUT, "JMapDesk - About...", JOptionPane.INFORMATION_MESSAGE);
+				}
+			}
+		};
+		JMenu helpmenu = new JMenu(LBL_HELP);
+		helpmenu.setMnemonic(KeyEvent.VK_H);
+		JMenuItem aboutItem = guic.create_menuItem_string(LBL_ABOUT, "F12");
+		JMenuItem[] helpItems = { aboutItem };
+		for (JMenuItem items: helpItems) {
+			items.addActionListener(helplistener);
+		}
+		helpmenu.add(aboutItem);
+		
+		JMenu[] menuItem = { filemenu, editmenu, viewmenu, toolsmenu, helpmenu };
+		for (int i = 0; i < menuItem.length; i++) {
+			mbar.add(menuItem[i]);
+		}
+		
+		// Toolbar
+		final String LBL_DRAGMODE = "Drag Mode";
+		final String LBL_SELECT = "Select Area";
+		
+		toolbar.setFloatable(false);
+		JButton openButton = guic.create_button("document-open.png", LBL_OPEN);
+		openButton.addActionListener(filelistener);
+		zoomInButton = guic.create_button("zoom-in.png", LBL_ZOOM_IN);
+		zoomOutButton = guic.create_button("zoom-out.png", LBL_ZOOM_OUT);
+		zoomExtentsButton = guic.create_button("zoom-best-fit.png", LBL_ZOOM_EXTENTS);
+		refreshButton = guic.create_button("reload.png", LBL_REFRESH);
+		copyButton = guic.create_button("camera.png", LBL_COPY);
+		copyButton.addActionListener(editlistener);
+		JButton[] viewButtons = { zoomInButton, zoomOutButton, zoomExtentsButton, refreshButton };
+		toolbar.add(openButton);
+		for (JButton buttons: viewButtons) {
+			buttons.addActionListener(viewlistener);
+			toolbar.add(buttons);
+		}
+		toolbar.addSeparator();
+		toolbar.add(copyButton);
+		toolbar.addSeparator();
+		
+		ActionListener togglemode = new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				if(e.getActionCommand() == LBL_DRAGMODE) {
+					if (area != null) {
+						mainPanel.remove(area);
+					}
+					viewComponent.setVisible(true);
+					dragButton.setSelected(true);
+					selectButton.setSelected(false);
+					setButtons(true, false);
+				} else if(e.getActionCommand() == LBL_SELECT) {
+					remove_area();
+					setCursor(new Cursor(Cursor.WAIT_CURSOR));
+					viewComponent.setVisible(true);
+					copy_event();
+					viewComponent.setVisible(false);
+					statusLabel.setText("Select an Area...");
+					setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
+					area = new SelectArea(new ImageIcon(bimage));
+					mainPanel.add(area);
+					dragButton.setSelected(false);
+					selectButton.setSelected(true);
+					setButtons(false, false);
+				}
+			}
+		};
+		dragButton = guic.create_togglebutton("pointer.png", LBL_DRAGMODE);
+		selectButton = guic.create_togglebutton("select.png", LBL_SELECT);
+		JToggleButton[] togglebuttons = { dragButton, selectButton };
+		for(JToggleButton buttons: togglebuttons) {
+			buttons.addActionListener(togglemode);
+			if (JMapDesk.DEBUG)
+				toolbar.add(buttons);
+		}
+		
+		// layerpanel
+		final String LBL_LAYERS = "Layers";
+		
+		layerPanel.setLayout(new BoxLayout(layerPanel,BoxLayout.PAGE_AXIS));
+		layerPanel.setBorder(BorderFactory.createTitledBorder(LBL_LAYERS));
+		layerPanel.setVisible(false);
+		
+		// mainpanel
+		mainPanel.setLayout(new BorderLayout());
+		mainPanel.add(layerPanel, BorderLayout.WEST);
+		mainPanel.add(statusLabel, BorderLayout.SOUTH);
+		mainPanel.add(toolbar, BorderLayout.NORTH);
+		mainPanel.add(startScreen);
+		
+		// JFrame
+		add(mainPanel);
+		setJMenuBar(mbar);
+		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		setResizable(true);
+		addWindowListener(this);
+		setIconImage((new ImageIcon(getClass().getResource("/ch/hsr/ifs/jmapdesk/ui/images/icon.jpg")).getImage()));
+		setTitle(programName + " - no mapfile");
+		pack();
+		
+		if(properties.containsKey(P_WINDOWS_POS_X) && properties.containsKey(P_WINDOWS_POS_Y)) {
+			setLocation(Integer.parseInt(properties.getProperty(P_WINDOWS_POS_X)),Integer.parseInt(properties.getProperty(P_WINDOWS_POS_Y)));
+		} else {
+			Dimension dim = Toolkit.getDefaultToolkit().getScreenSize();
+			setLocation(dim.width/2, dim.height/2);
+		}
+		setVisible(true);
+		setButtons(false, true);
+	}
+	
+	/**
+	 * save Properties
+	 */
+	private void storeProperties() {
+		properties.setProperty(P_WINDOWS_POS_X, String.valueOf(getLocationOnScreen().x));
+		properties.setProperty(P_WINDOWS_POS_Y, String.valueOf(getLocationOnScreen().y));
+		try {
+			properties.store(new FileOutputStream(PROPSFILE), "JMapDesk Properties");
+		} catch (IOException e) {
+			System.out.println(e);
+		}
+	}
+	
+	/**
+	 * load Properties 
+	 */
+	private boolean loadProperties() {
+		try {
+			properties.load(new FileInputStream(PROPSFILE));
+		} catch (IOException e) {
+			System.out.println(e);
+		}
+		return askForBinaryFile();
+	}
+	
+	/**
+	 * Check if shp2img exists 
+	 */
+	private boolean askForBinaryFile() {
+		final String TXT_SELECT_BINARY = programName+" needs the 'shp2img' binary to run!\r\n" +
+				"The binary is part of the FWTools toolkit and can be downloaded for Windows and Linux.\r\n" +
+				" Please specify the location of the 'shp2img' binary in the following dialog!";
+		
+		if(properties.containsKey(P_SHP2IMG)){
+			if(new File(properties.getProperty(P_SHP2IMG)).exists()){
+				return true;
+			}
+		}
+		GUI_Components guic = new GUI_Components();
+		JFileChooser fileChooser = guic.file_chooser();
+		fileChooser.setDialogTitle("Please select 'shp2img' binary file...");
+		int result = JOptionPane.showConfirmDialog(null, TXT_SELECT_BINARY, programName, JOptionPane.OK_CANCEL_OPTION);
+		boolean askbinary = true;
+        switch(result)  {
+        case JOptionPane.OK_OPTION:
+    		fileChooser.setFileFilter(new FileFilter() {
+    			String shp2img = null;
+    			public boolean accept(File file) {
+    				if (System.getProperty("os.name").toLowerCase().contains("linux")) {
+    					shp2img = "shp2img";
+    				} else if (System.getProperty("os.name").toLowerCase().contains("windows")) {
+    					shp2img = "shp2img.exe";
+    				}
+    				return file.getName().toLowerCase().equals(shp2img) || file.isDirectory();
+    			}
+    			public String getDescription() {
+    				if (System.getProperty("os.name").toLowerCase().contains("linux")) {
+        				shp2img = "shp2img";
+    				} else if (System.getProperty("os.name").toLowerCase().contains("windows")) {
+        				shp2img =  "shp2img.exe";
+    				}
+    				return shp2img;
+    			}
+    		});
+    		if(fileChooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
+    			properties.setProperty(P_SHP2IMG, fileChooser.getSelectedFile().getAbsolutePath());
+    			if (System.getProperty("os.name").toLowerCase().contains("linux")) {
+    				properties.setProperty(P_OGRINFO, fileChooser.getCurrentDirectory() + File.separator + "ogrinfo");
+    			} else if (System.getProperty("os.name").toLowerCase().contains("windows")) {
+    				properties.setProperty(P_OGRINFO, fileChooser.getCurrentDirectory() + File.separator + "ogrinfo.exe");
+    			}
+            	askbinary = true;
+    		} else {
+    			askbinary = false;
+    			fileChooser.cancelSelection();
+    		}
+    		break;
+        case JOptionPane.CANCEL_OPTION:
+        	askbinary = false;
+        	fileChooser.cancelSelection();
+        	break;
+        }
+        return askbinary;
+	}
+	@Override
+	public void windowClosing(WindowEvent e) {
+		exit();
+	}
+	@Override
+	public void windowActivated(WindowEvent e) {}
+	@Override
+	public void windowClosed(WindowEvent e) {}
+	@Override
+	public void windowDeactivated(WindowEvent e) {}
+	@Override
+	public void windowDeiconified(WindowEvent e) {}
+	@Override
+	public void windowIconified(WindowEvent e) {}
+	@Override
+	public void windowOpened(WindowEvent e) {}
+
+	/**
+	 * delete tempfile and exit
+	 */
+	void exit() {
+		delete_tempmap();
+		if(map!=null) {
+			map.getMapLoader().cleanUp();
+		}
+		storeProperties();
+		System.exit(0);
+	}
+	
+	/**
+	 * close mapfile
+	 */
+	void closeMap() {
+		delete_tempmap();
+		setTitle(programName + " - no mapfile");
+		setButtons(false, true);
+		if (map != null) {
+			map.getMapLoader().cleanUp();
+			remove_viewcomp();
+		}
+		remove_area();
+		layerPanel.setVisible(false);
+		mainPanel.add(startScreen);
+		statusLabel.setText(LBL_WELCOME);
+		pack();
+	}
+	
+	/**
+	 * load mapfile
+	 * 
+	 * @param mapfile MapFile
+	 */
+	void loadMapfile() {
+		setButtons(true, true);
+		dragButton.setSelected(true);
+		selectButton.setSelected(false);
+		
+		boolean tryAgain = false;
+		if (map != null) {
+			map.getMapLoader().cleanUp();
+			remove_viewcomp();
+		}
+		remove_area();
+		do {
+			try {
+				tryAgain = false;
+				map = new Map(mapfile, properties.getProperty(P_SHP2IMG));
+				mainPanel.remove(startScreen);
+				layerPanel.setVisible(true);
+				
+				viewComponent = new ViewComponent(map);
+				viewComponent.addMouseMotionListener(new MouseMotionListener() {
+					@Override
+					public void mouseDragged(MouseEvent arg0) {}
+					@Override
+					public void mouseMoved(MouseEvent arg0) {
+						double posx = arg0.getPoint().x*map.getXFactor() + map.getXOffset() + map.getPosition().x - viewComponent.getWidth()/2*map.getXFactor();
+						double posy = arg0.getPoint().y*map.getYFactor() - viewComponent.getHeight()/2*map.getYFactor()
+									- map.getYOffset() - map.getPosition().y;
+						if (!Double.isInfinite(posx) && !Double.isNaN(posx) && !Double.isInfinite(posy) && !Double.isNaN(posy)) {
+							BigDecimal bd;
+							bd = new BigDecimal(posx);
+							mousePosX = bd.setScale(5, BigDecimal.ROUND_HALF_DOWN).doubleValue();
+							bd = new BigDecimal(-posy);
+							mousePosY = bd.setScale(5, BigDecimal.ROUND_HALF_DOWN).doubleValue();
+							statusLabel.setText("Koordinaten N: " + mousePosX + " E: " + mousePosY + " - Zoom Level " + map.getLevel());
+						}
+					}
+				});
+				mainPanel.add(viewComponent);
+				add(mainPanel);
+				
+				layerPanel.removeAll();
+				add_checkbox();
+				setVisible(true);
+				// + 25: stupid frame border..
+				setSize((int)map.getImageWidth() + layerPanel.getSize().width + 25,
+						(int)map.getImageHeight() + toolbar.getSize().height + statusLabel.getSize().height + mbar.getSize().height + 25);
+				viewComponent.init();
+			} catch (InvalidBinaryException e) {
+				properties.setProperty(P_SHP2IMG, "");
+				if(!askForBinaryFile()) {
+					exit();
+				} else {
+					tryAgain = true;
+				}
+			}
+		} while(tryAgain);
+	}
+	
+	/**
+	 * Add CheckBox to LayerPanel
+	 */
+	private void add_checkbox() {
+		for (MapFileLayer l : map.getMapfile().getLayers()) {
+			l.addCheckBoxActionListener(new ActionListener() {
+				public void actionPerformed(ActionEvent e) {
+					map.updateVersion();
+					map.refresh();
+					viewComponent.reloadImage();
+				}
+			});
+			layerPanel.add(l.getCheckBox());
+		}
+	}
+	
+	/**
+	 * delete tempfile
+	 */
+	private void delete_tempmap() {
+		File tempfile = new File(path + tempmap);
+		tempfile.delete();
+	}
+	
+	/**
+	 * remove selectarea
+	 */
+	private void remove_area() {
+		if (area != null) {
+			mainPanel.remove(area);
+		}
+	}
+	
+	/**
+	 * remove viewcomponent
+	 */
+	private void remove_viewcomp() {
+		if(viewComponent != null) {
+			mainPanel.remove(viewComponent);
+		}
+	}
+	
+	/**
+	 * Enable/ Disable just the usable/ needed Buttons
+	 * 
+	 * @param onoff Turn Button on/ off
+	 * @param chooseall all Buttons
+	 */
+	private void setButtons(boolean onoff, boolean chooseall) {
+		copyItem.setEnabled(onoff);
+		copyfileItem.setEnabled(onoff);
+		zoomInItem.setEnabled(onoff);
+		zoomOutItem.setEnabled(onoff);
+		zoomExtentsItem.setEnabled(onoff);
+		refreshItem.setEnabled(onoff);
+		errboxItem.setEnabled(onoff);
+		
+		zoomInButton.setEnabled(onoff);
+		zoomOutButton.setEnabled(onoff);
+		zoomExtentsButton.setEnabled(onoff);
+		refreshButton.setEnabled(onoff);
+		copyButton.setEnabled(onoff);
+		
+		if (chooseall) {
+			closeItem.setEnabled(onoff);
+			dragButton.setEnabled(onoff);
+		}
+	}
+	
+	/**
+	 * make a screenshot of the map to clipboard
+	 */
+	void copy_event() {
+		setCursor(new Cursor(Cursor.WAIT_CURSOR));
+		bimage = new BufferedImage(viewComponent.getWidth(), viewComponent.getHeight(), BufferedImage.TYPE_INT_RGB);
+		Graphics2D g2d = bimage.createGraphics();
+		viewComponent.paint(g2d);
+		g2d.dispose();
+        ImageToClipboard img2clip = new ImageToClipboard(bimage);
+        Toolkit.getDefaultToolkit().getSystemClipboard().setContents(img2clip, null);
+        setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
+	}
+	
+	/**
+	 * Drawable Area
+	 * TODO: not working properly thus deactivated in the gui
+	 */
+	private class SelectArea extends JLabel {
+		private static final long serialVersionUID = 1L;
+		Rectangle rect = new Rectangle();
+		
+		public SelectArea(ImageIcon image) {
+			super(image);
+			addMouseListener(mouse_adapter);
+			addMouseMotionListener(mouse_adapter);
+		}
+		
+		protected void paintComponent(Graphics g) {
+			super.paintComponent(g);
+			g.setXORMode(Color.white);
+			g.drawRect(rect.x, rect.y, rect.width, rect.height);
+		}
+		
+		MouseInputAdapter mouse_adapter = new MouseInputAdapter() {
+			Point start;
+			public void mousePressed(MouseEvent e) {
+				start = e.getPoint();
+			}
+
+			public void mouseDragged(MouseEvent e) {
+				Point end = e.getPoint();
+				int x = start.x;
+				int y = start.y;
+				int width = end.x - start.x;
+				int height = end.y - start.y;
+				
+				//Make the width and height positive, if necessary.
+				if (width < 0) {
+					width =  -width;
+					x = x - width;
+					if (x < 0) {
+						width += x;
+						x = 0;
+					}
+				}
+				if (height < 0) {
+					height = -height;
+					y = y - height;
+					if (y < 0) {
+						height += y;
+						y = 0;
+					}
+				}
+
+				//The rectangle shouldn't extend past the drawing area.
+				if ((x + width) > getWidth()) {
+					width = getWidth() - x - 1;
+				}
+				if ((y + height) > getHeight()) {
+					height = getHeight() - y - 1;
+				}
+				
+				// draw rectangle
+				rect.setBounds(x, y, width, height);
+				repaint();
+			}
+			
+			public void mouseMoved(MouseEvent e) {
+				setCursor(new Cursor(Cursor.CROSSHAIR_CURSOR));
+			}
+			
+			public void mouseReleased(MouseEvent e) {
+				// TODO: try to avoid writing image, i'm too stupid..
+				setCursor(new Cursor(Cursor.WAIT_CURSOR));
+				bimage = new BufferedImage((int)Map.map_width, (int)Map.map_height, BufferedImage.TYPE_INT_RGB);
+				Graphics2D g2d = bimage.createGraphics();
+				g2d.setClip(rect);
+				paint(g2d);
+				g2d.dispose();
+				File tmpimg = new File(System.getProperty("java.io.tmpdir") + File.separator + "_temp.png");
+				try {
+					ImageIO.write(bimage, "png", tmpimg);
+				} catch (IOException e1) {
+					System.out.println(e1);
+				}
+				ImageIcon icon = new ImageIcon(tmpimg.toString());
+				Image image = icon.getImage();
+				image = createImage(new FilteredImageSource(image.getSource(), new CropImageFilter(rect.x, rect.y, rect.width, rect.height)));
+				ImageToClipboard img2clip = new ImageToClipboard(image);
+				Toolkit.getDefaultToolkit().getSystemClipboard().setContents(img2clip, null);
+				tmpimg.delete();
+				setCursor(new Cursor(Cursor.CROSSHAIR_CURSOR));
+				statusLabel.setText("Selected MapArea transfered to Clipboard...");
+			}
+		};
+	}
+}

@@ -1,0 +1,85 @@
+TODO/ Known Issues
+- CLEAN OR REBUILD THIS CRAPPY CODE!
+- still show wrong coordinates sometime.
+- not smooth pan with mapfiles with gps coordinates.
+
+
+Version 1.0 BETA
+
+JMapDesk
+- NEW: rewritten and cleaned main code
+- NEW: Design Document (PDF)
+MapGenerator
+- FIX: NullPoint if no extent is avaible
+- some minor changes
+
+
+Version 0.9.5.3
+
+JMapDesk
+- NEW: include readme, GPL, LPGL, changelog
+- NEW: junit tests
+- FIX: parse error when mapfile got "tab" as delimiter
+MapGenerator
+- FIX: file-/ warning dialogs always on top
+
+
+Version 0.9.5.2
+
+JMapDesk
+- FIX: wrong coordinates
+
+
+Version 0.9.5.1
+
+JMapDesk
+- NEW: warning log and mapgen window dock on jmapdesk
+- FIX: rewritten and optimized parts of code
+- FIX: refresh feature
+- some minor changes and fixes
+
+
+Version 0.9.5.0
+
+JMapDesk
+- NEW: warningbox for shp2img errors
+- some other fixes
+
+
+Version 0.9.4.3
+
+MapGenerator
+- FIX: extent calculation
+
+
+Version 0.9.4.2
+
+JMapDesk
+- FIX: mapparser for some more maps
+- minor changes
+
+
+Version 0.9.4.1
+
+JMapDesk
+- FIX: increased drag precision in a resized window
+
+
+Version 0.9.4.0
+
+JMapDesk
+- NEW: mapgenerator
+- NEW: window resizable
+- NEW: map screenshot
+- NEW: drag mode (disabled)
+- NEW: zoom with mousewheel
+- NEW: change cursor (default, wait, cross)
+- NEW: zoom-in with "ctrl-mouseclick"
+- NEW: layertype as tooltip
+- NEW: layertype as icon
+- NEW: ant file
+- FIX: show wms
+- FIX: reload feature
+- CHANGE: statusbar
+- CHANGE: about box
+- CHANGE: resized icons
